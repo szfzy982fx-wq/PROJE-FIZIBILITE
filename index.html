@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emlak Portföy Asistanı - Proje Fizibilite</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f4f6f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .card { border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; border: none; }
+        .card-header { background-color: #2c3e50; color: white; border-radius: 10px 10px 0 0 !important; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+        .form-label { font-weight: 500; font-size: 0.85rem; color: #34495e; margin-bottom: 4px; }
+        .form-control, .form-select { border-radius: 6px; font-size: 0.9rem; }
+        ::placeholder { color: #adb5bd !important; opacity: 0.5 !important; font-style: italic; }
+        
+        .result-box { background-color: #e8f4f8; padding: 15px; border-radius: 8px; border-left: 4px solid #3498db; margin-top: 15px; }
+        .warning-box { background-color: #fdf3d8; padding: 10px; border-radius: 6px; border-left: 4px solid #f1c40f; font-size: 0.85rem; display: none; margin-top:10px; color:#8a6d3b;}
+        .tooltip-icon { display: inline-block; width: 16px; height: 16px; background-color: #95a5a6; color: white; border-radius: 50%; text-align: center; font-size: 11px; line-height: 16px; cursor: help; margin-left: 5px; }
+        .section-title { font-size: 1.05rem; color: #2c3e50; border-bottom: 2px solid #ecf0f1; padding-bottom: 5px; margin-bottom: 12px; margin-top: 15px; font-weight: bold;}
+        .two-way-row { display: flex; align-items: center; gap: 8px; }
+        .summary-val { font-size: 1.2rem; font-weight: bold; color: #e74c3c; }
+        
+        .gizli-emsaller { background: #f8f9fa; border-radius: 10px; padding: 15px; border-left: 5px solid #8e44ad; margin-top: 20px; font-size: 0.85rem; }
+        .yasal-uyari { font-size: 0.75rem; color: #7f8c8d; margin-top: 15px; font-style: italic; border-top: 1px solid #dee2e6; padding-top: 10px; }
+        .info-btn { width: 28px; height: 28px; padding: 0; line-height: 26px; border-radius: 50%; font-weight: bold; border: 2px solid #3498db; color: #3498db; background: transparent; transition: 0.3s; }
+        .info-btn:hover { background: #3498db; color: white; }
+        @media print { .no-print { display: none; } }
+    </style>
+</head>
+<body>
+
+<div class="container py-4" id="fizibiliteRaporu">
+    <div class="d-flex justify-content-between align-items-center mb-4 no-print">
+        <div class="d-flex align-items-center gap-2">
+            <h2 style="color: #2c3e50; font-weight: bold; margin:0;">📊 Proje Fizibilite Modülü</h2>
+            <button class="info-btn" data-bs-toggle="modal" data-bs-target="#infoModal" title="Hesaplama Mantığı">i</button>
+        </div>
+        <button onclick="exportToPDF()" class="btn btn-dark btn-sm shadow-sm">📄 PDF Rapor</button>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-5">
+            <div class="card">
+                <div class="card-header">1. İmar ve Kapasite (Temel Veriler)</div>
+                <div class="card-body">
+                    <div class="row g-2 mb-2">
+                        <div class="col-md-6">
+                            <label class="form-label">Arsa Alanı (m²) - [X]</label>
+                            <input type="text" inputmode="decimal" id="arsaAlani" class="form-control krs-format" oninput="formatKrs(this); calcAna();" placeholder="Örn: 1.000">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Emsal (KAKS) - [Y]</label>
+                            <input type="text" inputmode="decimal" id="kaks" class="form-control" oninput="calcAna();" placeholder="Örn: 1.20">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">TAKS</label>
+                            <input type="text" inputmode="decimal" id="taks" class="form-control" oninput="calcAna();" placeholder="Örn: 0.30">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Gabari (Kat)</label>
+                            <input type="text" inputmode="decimal" id="gabari" class="form-control" oninput="calcAna();" placeholder="Örn: 7">
+                        </div>
+                    </div>
+                    
+                    <div class="row g-2 p-2 bg-light rounded border">
+                        <div class="col-md-4">
+                            <label class="form-label">ÇKS <span class="tooltip-icon" title="Örn: 1.30. Girilirse Ortak Alan iptal olur.">i</span></label>
+                            <input type="text" inputmode="decimal" id="cks" class="form-control" oninput="calcAna();" placeholder="Örn: 1.30">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Ortak Alan % <span class="tooltip-icon" title="ÇKS yoksa bu oran % olarak eklenir.">i</span></label>
+                            <input type="text" inputmode="decimal" id="ortakAlan" class="form-control" oninput="calcAna();" placeholder="Örn: 30">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Subasman <span class="tooltip-icon" title="TİA formülünü değiştirir.">i</span></label>
+                            <select id="subasman" class="form-select" onchange="calcAna();">
+                                <option value="0.50">0.50</option>
+                                <option value="2.50">2.50</option>
+                                <option value="5.50">5.50</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="section-title mt-3">Arsa Boyutları ve Çekme Payları (Opsiyonel)</div>
+                    <div class="row g-2">
+                        <div class="col-6"><input type="text" inputmode="decimal" id="arsaEn" class="form-control" oninput="calcAna();" placeholder="Arsa Eni"></div>
+                        <div class="col-6"><input type="text" inputmode="decimal" id="arsaBoy" class="form-control" oninput="calcAna();" placeholder="Arsa Boyu"></div>
+                        <div class="col-6"><input type="text" inputmode="decimal" id="yanCekme" class="form-control" oninput="calcAna();" placeholder="Yan Toplam"></div>
+                        <div class="col-6"><input type="text" inputmode="decimal" id="onArkaCekme" class="form-control" oninput="calcAna();" placeholder="Ön/Arka Toplam"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    3. Finansal Veriler 
+                    <select id="paraBirimi" class="form-select form-select-sm w-auto no-print" style="background-color: #34495e; color: white; border-color: #2c3e50;">
+                        <option value="TRY">TL (₺)</option>
+                        <option value="USD">USD ($)</option>
+                        <option value="EUR">EUR (€)</option>
+                        <option value="GBP">GBP (£)</option>
+                    </select>
+                </div>
+                <div class="card-body">
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label">Dükkan m² Fiyatı</label>
+                            <input type="text" inputmode="decimal" id="ticariM2Fiyat" class="form-control krs-format" oninput="formatKrs(this); calcFinans();" placeholder="Örn: 150.000">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Daire m² Fiyatı</label>
+                            <input type="text" inputmode="decimal" id="konutM2Fiyat" class="form-control krs-format" oninput="formatKrs(this); calcFinans();" placeholder="Örn: 50.000">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-7">
+            <div class="card">
+                <div class="card-header" style="background-color: #27ae60;">Proje Kapasite Özeti</div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <div class="form-label">Zemin/Ticari [T.A]</div>
+                            <div class="summary-val" id="lblZeminKat">0 m²</div>
+                        </div>
+                        <div class="col-4">
+                            <div class="form-label">Üst Katlar [T.K.A]</div>
+                            <div class="summary-val" id="lblUstKatlar">0 m²</div>
+                        </div>
+                        <div class="col-4">
+                            <div class="form-label">Sistem TİA</div>
+                            <div class="summary-val text-success" id="lblTIA">0 m²</div>
+                        </div>
+                    </div>
+                    
+                    <div id="uyariCekme" class="warning-box">⚠️ <strong>Fiziksel Sınır:</strong> Çekme payları sonrası kalan net alan, yasal TAKS'tan küçük! Oturum fiziksel alana göre daraltıldı.</div>
+                    <div id="uyariGabari" class="warning-box">⚠️ <strong>Kat Sınırı:</strong> Gabari emsalin tamamını kullanmaya yetmiyor. Optimize edildi.</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header" style="background-color: #8e44ad;">2. Dağılım ve Paylaşım Senaryosu</div>
+                <div class="card-body">
+                    <div class="section-title mt-0">🏢 Ticari Alan Paylaşımı (Toplam: <span id="lblTicariToplam">0</span> m²)</div>
+                    <div class="row mb-3 g-2">
+                        <div class="col-6">
+                            <label class="form-label text-success">Arsa Sahibi % / m²</label>
+                            <div class="two-way-row">
+                                <input type="text" inputmode="decimal" id="ticariArsaYuzde" class="form-control form-control-sm" placeholder="%" oninput="syncPaylasim('ticari', 'arsa', 'yuzde')">
+                                <input type="text" inputmode="decimal" id="ticariArsaM2" class="form-control form-control-sm" placeholder="m²" oninput="syncPaylasim('ticari', 'arsa', 'm2')">
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label text-danger">Müteahhit % / m²</label>
+                            <div class="two-way-row">
+                                <input type="text" inputmode="decimal" id="ticariMutYuzde" class="form-control form-control-sm" placeholder="%" oninput="syncPaylasim('ticari', 'mut', 'yuzde')">
+                                <input type="text" inputmode="decimal" id="ticariMutM2" class="form-control form-control-sm" placeholder="m²" oninput="syncPaylasim('ticari', 'mut', 'm2')">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section-title">🏠 Konut Alanı Paylaşımı (Toplam: <span id="lblKonutToplam">0</span> m²)</div>
+                    <div class="row mb-3 g-2">
+                        <div class="col-6">
+                            <label class="form-label text-success">Arsa Sahibi % / m²</label>
+                            <div class="two-way-row">
+                                <input type="text" inputmode="decimal" id="konutArsaYuzde" class="form-control form-control-sm" placeholder="%" oninput="syncPaylasim('konut', 'arsa', 'yuzde')">
+                                <input type="text" inputmode="decimal" id="konutArsaM2" class="form-control form-control-sm" placeholder="m²" oninput="syncPaylasim('konut', 'arsa', 'm2')">
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label text-danger">Müteahhit % / m²</label>
+                            <div class="two-way-row">
+                                <input type="text" inputmode="decimal" id="konutMutYuzde" class="form-control form-control-sm" placeholder="%" oninput="syncPaylasim('konut', 'mut', 'yuzde')">
+                                <input type="text" inputmode="decimal" id="konutMutM2" class="form-control form-control-sm" placeholder="m²" oninput="syncPaylasim('konut', 'mut', 'm2')">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row align-items-center mt-2 p-2 bg-light rounded border g-0">
+                        <div class="col-4 border-end pe-2">
+                            <label class="form-label mb-1">Ort. Daire m²:</label>
+                            <input type="text" inputmode="decimal" id="ortDaireAlan" class="form-control form-control-sm" value="100" oninput="calcFinans()">
+                        </div>
+                        <div class="col-8 ps-3">
+                            <ul class="mb-0 list-unstyled" style="font-size: 0.85rem;">
+                                <li><strong>Arsa:</strong> <span id="lblArsaDaire" class="text-success fw-bold">0</span> Daire + <span id="lblArsaTicariSonuc">0</span> m² Dükkan</li>
+                                <li><strong>Müt:</strong> <span id="lblMutDaire" class="text-danger fw-bold">0</span> Daire + <span id="lblMutTicariSonuc">0</span> m² Dükkan</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-warning">
+                <table class="table table-sm table-bordered text-center mb-0" style="font-size: 0.85rem;">
+                    <thead class="table-light">
+                        <tr><th>Bölüm</th><th>Arsa Sahibi</th><th>Müteahhit</th><th>Toplam Ciro</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Ticari</td><td id="finArsaTicari" class="text-success">0</td><td id="finMutTicari" class="text-danger">0</td><td id="finTopTicari" class="fw-bold">0</td></tr>
+                        <tr><td>Konut</td><td id="finArsaKonut" class="text-success">0</td><td id="finMutKonut" class="text-danger">0</td><td id="finTopKonut" class="fw-bold">0</td></tr>
+                        <tr class="table-warning fw-bold"><td>TOPLAM</td><td id="finArsaTop" class="text-success">0</td><td id="finMutTop" class="text-danger">0</td><td id="finGenelTop" style="font-size:1rem;">0</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="yasal-uyari">⚠️ <strong>YASAL UYARI:</strong> Bu rapor matematiksel bir öngörüdür. Kesin sonuçlar avan proje ile belirlenir.</div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="infoModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-dark text-white">
+        <h5 class="modal-title">Hesaplama Formülleri ve Mantığı</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Kapat"></button>
+      </div>
+      <div class="modal-body" style="font-size: 0.9rem;">
+        <p><strong>X:</strong> Arsa Alanı</p>
+        <p><strong>Y:</strong> Emsal (KAKS)</p>
+        <p><strong>Z (Emsal Alanı):</strong> X * Y</p>
+        <p><strong>T.A (Taban Alanı):</strong> X * TAKS</p>
+        <p><strong>K.A (Kat Alanı):</strong> Z - T.A</p>
+        <p><strong>Çarpan:</strong> ÇKS değeri girilmişse direkt ÇKS'dir. Girilmemişse Ortak Alan %'den türetilir (Örn: %30 = 1.30).</p>
+        <p class="text-danger fw-bold"><strong>T.K.A (Toplam Kat Alanı):</strong> K.A x Çarpan (ÇKS girilmişse ÇKS, yoksa Ortak Alan %)</p>
+        <hr>
+        <h6 class="fw-bold text-primary">TİA (Toplam İnşaat Alanı) Hesaplamaları:</h6>
+        <ul>
+            <li><strong>Subasman 0.50:</strong> TİA = T.K.A + T.A</li>
+            <li><strong>Subasman 2.50:</strong> TİA = (Z * Çarpan) + T.A</li>
+            <li><strong>Subasman 5.50:</strong> TİA = (Z * Çarpan) + (T.A * 2)</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+<script>
+    // --- 1. DÖVİZ KURU DİNLEYİCİ (Apple/Safari Uyumu İçin Eklendi) ---
+    document.getElementById('paraBirimi').addEventListener('change', calcFinans);
+
+    // --- 2. GÜVENLİ VERİ OKUMA ---
+    function getVal(id) {
+        let el = document.getElementById(id);
+        if (!el || !el.value) return 0;
+        
+        let val = el.value.replace(/[^0-9.,]/g, '');
+        if (val === '') return 0;
+
+        if (el.classList.contains('krs-format')) {
+            val = val.replace(/\./g, '');
+        }
+        
+        val = val.replace(',', '.');
+        let num = parseFloat(val);
+        return isNaN(num) ? 0 : num;
+    }
+
+    // --- 3. CANLI RAKAM BASAMAKLANDIRICI ---
+    function formatKrs(el) {
+        let val = el.value.replace(/[^0-9,]/g, '');
+        if (val === "") { el.value = ""; return; }
+        let parts = val.split(',');
+        if (parts.length > 2) parts = [parts[0], parts.slice(1).join('')];
+        if (parts[0]) parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+        el.value = parts.join(',');
+    }
+
+    const fmtArea = new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 1 });
+    let sysZemin = 0, sysUst = 0;
+
+    // --- 4. ANA KAPASİTE HESAPLAYICI ---
+    function calcAna() {
+        try {
+            let arsa = getVal('arsaAlani');     
+            let kaks = getVal('kaks');          
+            let taks = getVal('taks');
+            let gabari = getVal('gabari');
+            let cks = getVal('cks');           
+            let ortakAlan = getVal('ortakAlan'); 
+            let subasman = document.getElementById('subasman').value;
+
+            let carpan = 1;
+            if (cks > 0) { carpan = cks; } 
+            else if (ortakAlan > 0) { carpan = 1 + (ortakAlan / 100); }
+
+            let Z = arsa * kaks;                      
+            let tabanTaks = arsa * taks;
+            
+            let en = getVal('arsaEn'), boy = getVal('arsaBoy');
+            let yan = getVal('yanCekme'), onArka = getVal('onArkaCekme');
+            
+            let tabanCekme = Infinity;
+            if(en > 0 && boy > 0) {
+                let kalanEn = Math.max(0, en - yan);
+                let kalanBoy = Math.max(0, boy - onArka);
+                tabanCekme = kalanEn * kalanBoy;
+            }
+
+            let TA = tabanTaks;
+            let uyariCekme = document.getElementById('uyariCekme');
+            if (tabanCekme !== Infinity && tabanCekme < tabanTaks) {
+                TA = tabanCekme;
+                if(uyariCekme) uyariCekme.style.display = 'block';
+            } else {
+                if(uyariCekme) uyariCekme.style.display = 'none';
+            }
+
+            let aktifEmsal = Z;
+            let gabariKapasite = TA * gabari;
+            let uyariGabari = document.getElementById('uyariGabari');
+            if (gabari > 0 && gabariKapasite < Z) {
+                if(uyariGabari) uyariGabari.style.display = 'block';
+                aktifEmsal = gabariKapasite;
+            } else {
+                if(uyariGabari) uyariGabari.style.display = 'none';
+            }
+
+            let KA = Math.max(0, aktifEmsal - TA);    
+            let TKA = KA * carpan;                    
+
+            let tia = 0;
+            if (subasman === "0.50") {
+                tia = TKA + TA;
+                sysZemin = TA;
+            } else if (subasman === "2.50") {
+                tia = (Z * carpan) + TA;
+                sysZemin = TA;
+            } else if (subasman === "5.50") {
+                tia = (Z * carpan) + (TA * 2);
+                sysZemin = TA * 2; 
+            }
+
+            sysUst = Math.max(0, tia - sysZemin);
+
+            document.getElementById('lblZeminKat').innerText = fmtArea.format(sysZemin) + " m²";
+            document.getElementById('lblUstKatlar').innerText = fmtArea.format(sysUst) + " m²";
+            document.getElementById('lblTIA').innerText = fmtArea.format(tia) + " m²";
+            document.getElementById('lblTicariToplam').innerText = fmtArea.format(sysZemin);
+            document.getElementById('lblKonutToplam').innerText = fmtArea.format(sysUst);
+
+            syncPaylasim('ticari', 'arsa', 'yuzde', true);
+            syncPaylasim('konut', 'arsa', 'yuzde', true);
+            
+        } catch(error) {
+            console.error("Hesaplama Hatası: ", error);
+        }
+    }
+
+    // --- 5. ÇİFT YÖNLÜ PAYLAŞIM SENARYOSU ---
+    function syncPaylasim(tur, taraf, degisen, isAuto = false) {
+        let toplam = (tur === 'ticari') ? sysZemin : sysUst;
+        if(toplam <= 0) {
+            calcFinans(); 
+            return; 
+        }
+
+        let aY = document.getElementById(tur + 'ArsaYuzde'), aM = document.getElementById(tur + 'ArsaM2');
+        let mY = document.getElementById(tur + 'MutYuzde'), mM = document.getElementById(tur + 'MutM2');
+
+        let vAY = getVal(aY.id) || 0;
+        let vMY = getVal(mY.id) || 0;
+        let vAM = getVal(aM.id) || 0;
+        let vMM = getVal(mM.id) || 0;
+
+        if(degisen === 'yuzde') {
+            let valY = (taraf === 'arsa' || isAuto) ? vAY : 100 - vMY;
+            valY = Math.min(100, Math.max(0, valY));
+            aY.value = valY.toFixed(1); mY.value = (100 - valY).toFixed(1);
+            aM.value = (toplam * valY / 100).toFixed(1); mM.value = (toplam - (toplam * valY / 100)).toFixed(1);
+        } else {
+            let valM = (taraf === 'arsa') ? vAM : toplam - vMM;
+            valM = Math.min(toplam, Math.max(0, valM));
+            let valY = (valM / toplam) * 100;
+            aY.value = valY.toFixed(1); mY.value = (100 - valY).toFixed(1);
+            aM.value = valM.toFixed(1); mM.value = (toplam - valM).toFixed(1);
+        }
+        calcFinans();
+    }
+
+    // --- 6. FİNANSAL TABLO VE DAİRE HESAPLAYICI ---
+    function calcFinans() {
+        let ort = getVal('ortDaireAlan') || 1;
+        let aTM = getVal('ticariArsaM2');
+        let mTM = getVal('ticariMutM2');
+        let aKM = getVal('konutArsaM2');
+        let mKM = getVal('konutMutM2');
+
+        document.getElementById('lblArsaTicariSonuc').innerText = fmtArea.format(aTM);
+        document.getElementById('lblMutTicariSonuc').innerText = fmtArea.format(mTM);
+        document.getElementById('lblArsaDaire').innerText = fmtArea.format(aKM / ort);
+        document.getElementById('lblMutDaire').innerText = fmtArea.format(mKM / ort);
+
+        let fT = getVal('ticariM2Fiyat'), fK = getVal('konutM2Fiyat');
+        let secilenDoviz = document.getElementById('paraBirimi').value;
+        let fm = new Intl.NumberFormat('tr-TR', { style: 'currency', currency: secilenDoviz, maximumFractionDigits: 0 });
+
+        document.getElementById('finArsaTicari').innerText = fm.format(aTM * fT);
+        document.getElementById('finMutTicari').innerText = fm.format(mTM * fT);
+        document.getElementById('finTopTicari').innerText = fm.format((aTM + mTM) * fT);
+        document.getElementById('finArsaKonut').innerText = fm.format(aKM * fK);
+        document.getElementById('finMutKonut').innerText = fm.format(mKM * fK);
+        document.getElementById('finTopKonut').innerText = fm.format((aKM + mKM) * fK);
+        document.getElementById('finArsaTop').innerText = fm.format((aTM*fT) + (aKM*fK));
+        document.getElementById('finMutTop').innerText = fm.format((mTM*fT) + (mKM*fK));
+        document.getElementById('finGenelTop').innerText = fm.format((aTM*fT)+(aKM*fK)+(mTM*fT)+(mKM*fK));
+    }
+
+    // --- 7. PDF İNDİRME (Hata Yakalama / Güvenlik Kalkanı Eklendi) ---
+    function exportToPDF() {
+        try {
+            if (typeof html2pdf === 'undefined') {
+                alert("PDF motoru yüklenemedi! Lütfen internet bağlantınızı kontrol edin veya tarayıcınızdaki 'Reklam Engelleyici'yi (AdBlock) bu sayfa için kapatın.");
+                return;
+            }
+            html2pdf().from(document.getElementById('fizibiliteRaporu')).set({
+                margin: 5, filename: 'Proje_Fizibilite.pdf', html2canvas: { scale: 2 },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            }).save();
+        } catch (error) {
+            alert("PDF oluşturulurken bir sistem hatası oluştu: " + error.message);
+        }
+    }
+</script>
+</body>
+</html>
